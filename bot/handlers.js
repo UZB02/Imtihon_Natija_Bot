@@ -210,27 +210,32 @@ function setupHandlers(bot, Users, googleService, options = {}) {
   });
 
   // 📤 Tugma bosilganda — barcha ota-onalarga natijalarni yuborish
-  bot.action("send_results_all", async (ctx) => {
-    const userId = String(ctx.from.id);
-    if (String(userId) !== String(ADMIN_ID)) {
-      return ctx.answerCbQuery("❌ Sizda ruxsat yo‘q!", { show_alert: true });
-    }
+bot.action("send_results_all", async (ctx) => {
+  const userId = String(ctx.from.id);
+  if (String(userId) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("❌ Sizda ruxsat yo‘q!", { show_alert: true });
+  }
 
-    await ctx.answerCbQuery("Yuborish boshlandi...");
-    await ctx.reply("📤 Imtihon natijalari yuborilmoqda...");
+  // Callbackni tezda yakunlash uchun javob qaytaramiz
+  await ctx.answerCbQuery("⏳ Yuborish jarayoni boshlandi...");
+  await ctx.reply("📤 Imtihon natijalari yuborilmoqda...");
 
-    try {
-      const result = await runCheckAndSend(bot, Users, googleService);
+  // Asosiy jarayonni orqa fonda (awaitsiz) ishga tushiramiz
+  runCheckAndSend(bot, Users, googleService)
+    .then(async (result) => {
       if (result.ok) {
-        await ctx.reply("✅ Natijalar barcha ota-onalarga yuborildi!");
+        await ctx.reply(`✅ ${result.message}`);
       } else {
         await ctx.reply(`⚠️ Xato: ${result.message}`);
       }
-    } catch (err) {
+    })
+    .catch(async (err) => {
       console.error("Admin yuborish xatosi:", err);
-      await ctx.reply("❌ Xatolik yuz berdi.");
-    }
-  });
+      await ctx.reply("❌ Xatolik yuz berdi. Tafsilotlar konsolda.");
+    });
+});
+
+
 }
 
 module.exports = setupHandlers;
