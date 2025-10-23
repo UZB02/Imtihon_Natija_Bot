@@ -210,32 +210,119 @@ function setupHandlers(bot, Users, googleService, options = {}) {
   });
 
   // 📤 Tugma bosilganda — barcha ota-onalarga natijalarni yuborish
-bot.action("send_results_all", async (ctx) => {
-  const userId = String(ctx.from.id);
-  if (String(userId) !== String(ADMIN_ID)) {
-    return ctx.answerCbQuery("❌ Sizda ruxsat yo‘q!", { show_alert: true });
-  }
+  bot.action("send_results_all", async (ctx) => {
+    const userId = String(ctx.from.id);
+    if (String(userId) !== String(ADMIN_ID)) {
+      return ctx.answerCbQuery("❌ Sizda ruxsat yo‘q!", { show_alert: true });
+    }
 
-  // Callbackni tezda yakunlash uchun javob qaytaramiz
-  await ctx.answerCbQuery("⏳ Yuborish jarayoni boshlandi...");
-  await ctx.reply("📤 Imtihon natijalari yuborilmoqda...");
+    // Callbackni tezda yakunlash uchun javob qaytaramiz
+    await ctx.answerCbQuery("⏳ Yuborish jarayoni boshlandi...");
+    await ctx.reply("📤 Imtihon natijalari yuborilmoqda...");
 
-  // Asosiy jarayonni orqa fonda (awaitsiz) ishga tushiramiz
-  runCheckAndSend(bot, Users, googleService)
-    .then(async (result) => {
-      if (result.ok) {
-        await ctx.reply(`✅ ${result.message}`);
-      } else {
-        await ctx.reply(`⚠️ Xato: ${result.message}`);
+    // Asosiy jarayonni orqa fonda (awaitsiz) ishga tushiramiz
+    runCheckAndSend(bot, Users, googleService)
+      .then(async (result) => {
+        if (result.ok) {
+          await ctx.reply(`✅ ${result.message}`);
+        } else {
+          await ctx.reply(`⚠️ Xato: ${result.message}`);
+        }
+      })
+      .catch(async (err) => {
+        console.error("Admin yuborish xatosi:", err);
+        await ctx.reply("❌ Xatolik yuz berdi. Tafsilotlar konsolda.");
+      });
+  });
+
+  // 📢 Admin barcha foydalanuvchilarga xabar yuborish
+  bot.command("sendall", async (ctx) => {
+    const userId = String(ctx.from.id);
+    if (String(userId) !== String(ADMIN_ID)) {
+      return ctx.reply("❌ Siz admin emassiz!");
+    }
+
+    ctx.reply(
+      "✉️ Iltimos, yubormoqchi bo‘lgan xabaringizni kiriting:",
+      Markup.inlineKeyboard([
+        [Markup.button.callback("❌ Bekor qilish", "cancel_sendall")],
+      ])
+    );
+
+    // Adminning holatini eslab qolamiz
+    const chatId = ctx.chat.id;
+    WAITING[chatId] = { step: "awaiting_broadcast_message" };
+  });
+
+  // 🔹 Admin matn yuborganda
+  bot.on("text", async (ctx) => {
+    const chatId = ctx.chat.id;
+
+    // Agar admin xabar yuborayotgan bo‘lsa
+    if (WAITING[chatId]?.step === "awaiting_broadcast_message") {
+      const userId = String(ctx.from.id);
+      if (String(userId) !== String(ADMIN_ID)) return;
+
+      const message = ctx.message.text;
+      delete WAITING[chatId];
+
+      await ctx.reply(
+        `📢 Quyidagi xabar barcha foydalanuvchilarga yuboriladi:\n\n"${message}"\n\nTasdiqlaysizmi?`,
+        Markup.inlineKeyboard([
+          [
+            Markup.button.callback(
+              "✅ Ha, yubor",
+              `confirm_sendall_${encodeURIComponent(message)}`
+            ),
+            Markup.button.callback("❌ Yo‘q, bekor", "cancel_sendall"),
+          ],
+        ])
+      );
+    }
+  });
+
+  // 🔹 Bekor qilish tugmasi
+  bot.action("cancel_sendall", async (ctx) => {
+    delete WAITING[ctx.chat.id];
+    await ctx.answerCbQuery();
+    await ctx.reply("❌ Yuborish bekor qilindi.");
+  });
+
+  // 🔹 Tasdiqlanganda xabarni hamma foydalanuvchilarga yuborish
+  bot.action(/confirm_sendall_(.+)/, async (ctx) => {
+    const userId = String(ctx.from.id);
+    if (String(userId) !== String(ADMIN_ID)) {
+      return ctx.answerCbQuery("❌ Sizda ruxsat yo‘q!", { show_alert: true });
+    }
+
+    const message = decodeURIComponent(ctx.match[1]);
+    await ctx.answerCbQuery("📨 Yuborish boshlandi...");
+    await ctx.reply("⏳ Xabar yuborilmoqda, biroz kuting...");
+
+    try {
+      const users = await Users.getAll(); // barcha foydalanuvchilarni olish
+      let success = 0,
+        failed = 0;
+
+      for (const user of users) {
+        try {
+          await bot.telegram.sendMessage(user.chatId, message);
+          success++;
+        } catch (err) {
+          failed++;
+          console.error(`❌ Xabar yuborilmadi (${user.chatId}):`, err.message);
+        }
+        await new Promise((r) => setTimeout(r, 100)); // flood-limitdan saqlanish uchun 0.1s kutish
       }
-    })
-    .catch(async (err) => {
-      console.error("Admin yuborish xatosi:", err);
-      await ctx.reply("❌ Xatolik yuz berdi. Tafsilotlar konsolda.");
-    });
-});
 
-
+      await ctx.reply(
+        `✅ ${success} ta foydalanuvchiga xabar yuborildi.\n⚠️ ${failed} tasi muvaffaqiyatsiz.`
+      );
+    } catch (err) {
+      console.error("❌ sendall xatosi:", err);
+      await ctx.reply("❌ Xabar yuborishda xatolik yuz berdi.");
+    }
+  });
 }
 
 module.exports = setupHandlers;
