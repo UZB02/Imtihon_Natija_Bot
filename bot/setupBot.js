@@ -7,28 +7,32 @@ function setupBot({ Users, googleService, BOT_TOKEN, CHECK_CRON }) {
   if (!BOT_TOKEN) throw new Error("BOT_TOKEN topilmadi!");
 
   const bot = new Telegraf(BOT_TOKEN);
-
   let cronEnabled = false;
   let cronJob = null;
 
-  // 🔹 Barcha handlerlarni ulaymiz (foydalanuvchilar uchun)
+  // 🔹 Foydalanuvchilar uchun handlerlarni ulaymiz
   setupHandlers(bot, Users, googleService);
 
-  // 🔹 Cron ishini bajaruvchi funksiya
+  // 🔹 Imtihon natijalarini yuboruvchi funksiya
   async function checkAndSendAll() {
     try {
       const sheetNames = await googleService.getSheetNames();
       for (const sheetName of sheetNames) {
         const students = await googleService.readSheetByName(sheetName);
         for (const student of students) {
-          const parents = await Users.findByClassAndName(sheetName, student.fullName);
+          const parents = await Users.findByClassAndName(
+            sheetName,
+            student.fullName
+          );
           if (!parents?.length) continue;
 
           const msg = composeMessage(sheetName, student);
           for (const p of parents) {
             try {
               await bot.telegram.sendMessage(p.chatId, msg);
-              console.log(`✅ ${p.chatId} -> ${student.fullName} (${sheetName})`);
+              console.log(
+                `✅ ${p.chatId} -> ${student.fullName} (${sheetName})`
+              );
             } catch (err) {
               console.error("❌ Yuborishda xato:", p.chatId, err?.message);
             }
@@ -41,7 +45,7 @@ function setupBot({ Users, googleService, BOT_TOKEN, CHECK_CRON }) {
     }
   }
 
-  // 🔹 Cronni yoqish yoki o‘chirish
+  // 🔹 Cronni yoqish/o‘chirish funksiyasi
   function toggleCron(ctx) {
     if (!cronEnabled) {
       cronJob = cron.schedule(CHECK_CRON, async () => {
@@ -59,12 +63,22 @@ function setupBot({ Users, googleService, BOT_TOKEN, CHECK_CRON }) {
 
   // 🔹 Admin panel tugmalari
   const adminKeyboard = Markup.inlineKeyboard([
-    [Markup.button.callback("📊 Imtihon natijalarini yuborish", "send_results")],
-    [Markup.button.callback("📢 Barcha foydalanuvchilarga xabar yuborish", "send_all")],
+    [
+      Markup.button.callback(
+        "📊 Imtihon natijalarini yuborish",
+        "send_results"
+      ),
+    ],
+    [
+      Markup.button.callback(
+        "📢 Barcha foydalanuvchilarga xabar yuborish",
+        "send_all"
+      ),
+    ],
     [Markup.button.callback("⚙️ Cronni yoqish/o‘chirish", "toggle_cron")],
   ]);
 
-  // 🔹 Start buyrug‘i
+  // 🔹 /start buyrug‘i
   bot.start(async (ctx) => {
     const chatId = ctx.chat.id;
     const adminIds = (process.env.ADMIN_IDS || "")
@@ -73,10 +87,11 @@ function setupBot({ Users, googleService, BOT_TOKEN, CHECK_CRON }) {
       .filter(Boolean)
       .map(Number);
 
-    console.log("🧩 start:", chatId, adminIds);
-
     if (adminIds.includes(chatId)) {
-      await ctx.reply("👋 Salom, Admin!\nQuyidagi tugmalardan foydalaning:", adminKeyboard);
+      await ctx.reply(
+        "👋 Salom, Admin!\nQuyidagi tugmalardan foydalaning:",
+        adminKeyboard
+      );
     } else {
       await ctx.reply(
         "👋 Assalomu alaykum!\nBotdan foydalanish uchun '➕ Farzand qo‘shish' tugmasini bosing."
@@ -84,7 +99,7 @@ function setupBot({ Users, googleService, BOT_TOKEN, CHECK_CRON }) {
     }
   });
 
-  // 🔹 Admin uchun tugma actionlari
+  // 🔹 Actionlar
   bot.action("send_results", async (ctx) => {
     await ctx.answerCbQuery();
     await ctx.reply("📊 Imtihon natijalari yuborilmoqda...");

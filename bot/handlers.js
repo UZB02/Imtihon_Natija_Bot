@@ -1,19 +1,13 @@
 const { Markup } = require("telegraf");
-const {
-  normalizeName,
-  chunkArray,
-  composeMessage,
-} = require("../utils/helpers");
+const { normalizeName, chunkArray, composeMessage } = require("../utils/helpers");
 
 function setupHandlers(bot, Users, googleService, options = {}) {
   const WAITING = {};
   const FAMILY = {};
 
-  // 🔹 Admin ID (ruxsat tekshiruvi uchun)
   const ADMIN_ID = options.ADMIN_ID || process.env.ADMIN_ID;
-  const runCheckAndSend = options.runCheckAndSend; // index.js dan kelyapti
+  const runCheckAndSend = options.runCheckAndSend;
 
-  // 🔹 Doimiy pastki tugmalar
   const mainKeyboard = Markup.keyboard([["➕ Farzand qo‘shish", "ℹ️ Yordam"]])
     .resize()
     .oneTime(false);
@@ -25,53 +19,41 @@ function setupHandlers(bot, Users, googleService, options = {}) {
     WAITING[chatId] = { step: "askClass" };
 
     await ctx.reply(
-      "👋 Assalomu alaykum!\n\nQuyidagi pastki tugmalar orqali farzandingizni qo‘shishingiz yoki yordam olishingiz mumkin.",
+      "👋 Assalomu alaykum!\nQuyidagi pastki tugmalar orqali farzandingizni qo‘shishingiz yoki yordam olishingiz mumkin.",
       mainKeyboard
     );
 
     let classes = [];
-    try {
-      classes = await googleService.getSheetNames();
-    } catch {
-      classes = ["5-Green", "5-Blue", "6-Green"];
-    }
+    try { classes = await googleService.getSheetNames(); } 
+    catch { classes = ["5-Green", "5-Blue", "6-Green"]; }
 
     const chunks = chunkArray(classes, 8);
     for (const group of chunks) {
       const buttons = group.map((c) => Markup.button.callback(c, `class_${c}`));
-      await ctx.reply(
-        "📘 Sinfingizni tanlang:",
-        Markup.inlineKeyboard(buttons, { columns: 2 })
-      );
+      await ctx.reply("📘 Sinfingizni tanlang:", Markup.inlineKeyboard(buttons, { columns: 2 }));
     }
   });
 
-  // 🔹 "➕ Farzand qo‘shish" bosilganda
+  // ➕ Farzand qo‘shish
   bot.hears("➕ Farzand qo‘shish", async (ctx) => {
     const chatId = ctx.chat.id;
     WAITING[chatId] = { step: "askClass" };
 
     let classes = [];
-    try {
-      classes = await googleService.getSheetNames();
-    } catch {
-      classes = ["5-Green", "5-Blue", "6-Green"];
-    }
+    try { classes = await googleService.getSheetNames(); } 
+    catch { classes = ["5-Green", "5-Blue", "6-Green"]; }
 
     const chunks = chunkArray(classes, 8);
     for (const group of chunks) {
       const buttons = group.map((c) => Markup.button.callback(c, `class_${c}`));
-      await ctx.reply(
-        "📘 Sinfingizni tanlang:",
-        Markup.inlineKeyboard(buttons, { columns: 2 })
-      );
+      await ctx.reply("📘 Sinfingizni tanlang:", Markup.inlineKeyboard(buttons, { columns: 2 }));
     }
   });
 
-  // 🔹 "ℹ️ Yordam" bosilganda
+  // ℹ️ Yordam
   bot.hears("ℹ️ Yordam", async (ctx) => {
     await ctx.replyWithMarkdown(
-      "ℹ️ *Yordam:*\n\n1️⃣ '➕ Farzand qo‘shish' tugmasini bosing.\n2️⃣ Sinfingizni tanlang.\n3️⃣ Farzandingiz ismini ro‘yxatdan tanlang.\n4️⃣ Yakunlang va natijalarni oling."
+      "ℹ️ *Yordam:*\n1️⃣ '➕ Farzand qo‘shish' tugmasini bosing.\n2️⃣ Sinfni tanlang.\n3️⃣ Farzand ismini tanlang.\n4️⃣ Yakunlang va natijalarni oling."
     );
   });
 
@@ -84,19 +66,15 @@ function setupHandlers(bot, Users, googleService, options = {}) {
 
     try {
       const students = await googleService.readSheetByName(className);
-      if (!students || students.length === 0) {
+      if (!students || students.length === 0)
         return ctx.reply(`❌ ${className} sinfi uchun ma’lumot topilmadi.`);
-      }
 
       const chunks = chunkArray(students, 8);
       for (const group of chunks) {
         const buttons = group.map((s) =>
           Markup.button.callback(s.fullName, `child_selected_${s.fullName}`)
         );
-        await ctx.reply(
-          `👨‍🎓 Farzandingizni tanlang (${className}):`,
-          Markup.inlineKeyboard(buttons, { columns: 2 })
-        );
+        await ctx.reply(`👨‍🎓 Farzandingizni tanlang (${className}):`, Markup.inlineKeyboard(buttons, { columns: 2 }));
       }
     } catch (err) {
       console.error("❌ O‘quvchilarni olishda xato:", err);
@@ -110,24 +88,19 @@ function setupHandlers(bot, Users, googleService, options = {}) {
     const chatId = ctx.chat.id;
     const state = WAITING[chatId];
 
-    if (!state || !state.className) {
+    if (!state || !state.className)
       return ctx.reply("⚠️ Iltimos, avval /start buyrug‘idan boshlang.");
-    }
 
     const payload = {
       chatId,
-      parentName:
-        ctx.from.first_name +
-        (ctx.from.last_name ? " " + ctx.from.last_name : ""),
+      parentName: ctx.from.first_name + (ctx.from.last_name ? " " + ctx.from.last_name : ""),
       className: state.className,
       childFullName,
     };
 
     if (!FAMILY[chatId]) FAMILY[chatId] = [];
-
     await Users.addUser(payload);
     FAMILY[chatId].push(payload);
-
     delete WAITING[chatId];
 
     const buttons = Markup.inlineKeyboard([
@@ -136,10 +109,7 @@ function setupHandlers(bot, Users, googleService, options = {}) {
     ]);
 
     await ctx.answerCbQuery();
-    return ctx.reply(
-      `✅ ${childFullName} (${state.className}) ro‘yxatga olindi!`,
-      buttons
-    );
+    return ctx.reply(`✅ ${childFullName} (${state.className}) ro‘yxatga olindi!`, buttons);
   });
 
   // ➕ Yana farzand qo‘shish
@@ -152,10 +122,7 @@ function setupHandlers(bot, Users, googleService, options = {}) {
     const chunks = chunkArray(classes, 8);
     for (const group of chunks) {
       const buttons = group.map((c) => Markup.button.callback(c, `class_${c}`));
-      await ctx.reply(
-        "📘 Sinfingizni tanlang:",
-        Markup.inlineKeyboard(buttons, { columns: 2 })
-      );
+      await ctx.reply("📘 Sinfingizni tanlang:", Markup.inlineKeyboard(buttons, { columns: 2 }));
     }
   });
 
@@ -176,9 +143,7 @@ function setupHandlers(bot, Users, googleService, options = {}) {
       );
 
       if (!student) {
-        await ctx.reply(
-          `❌ ${child.childFullName} (${child.className}) topilmadi.`
-        );
+        await ctx.reply(`❌ ${child.childFullName} (${child.className}) topilmadi.`);
         continue;
       }
 
@@ -191,43 +156,35 @@ function setupHandlers(bot, Users, googleService, options = {}) {
   });
 
   // ===============================
-  // 🔹 ADMIN PANEL QISMI
+  // 🔹 ADMIN PANEL
   // ===============================
 
-  // 🧑‍💼 /admin buyrug‘i
   bot.command("admin", async (ctx) => {
     const userId = String(ctx.from.id);
-    if (String(userId) !== String(ADMIN_ID)) {
-      return ctx.reply("❌ Siz admin emassiz!");
-    }
+    if (String(userId) !== String(ADMIN_ID)) return ctx.reply("❌ Siz admin emassiz!");
 
     await ctx.reply(
       "🛠 Admin panel:",
       Markup.inlineKeyboard([
         [Markup.button.callback("📤 Natijalarni yuborish", "send_results_all")],
+        [Markup.button.callback("📢 Barcha foydalanuvchilarga xabar yuborish", "send_all")]
       ])
     );
   });
 
-  // 📤 Tugma bosilganda — barcha ota-onalarga natijalarni yuborish
+  // 📤 Barcha natijalarni yuborish
   bot.action("send_results_all", async (ctx) => {
     const userId = String(ctx.from.id);
-    if (String(userId) !== String(ADMIN_ID)) {
+    if (String(userId) !== String(ADMIN_ID))
       return ctx.answerCbQuery("❌ Sizda ruxsat yo‘q!", { show_alert: true });
-    }
 
-    // Callbackni tezda yakunlash uchun javob qaytaramiz
     await ctx.answerCbQuery("⏳ Yuborish jarayoni boshlandi...");
     await ctx.reply("📤 Imtihon natijalari yuborilmoqda...");
 
-    // Asosiy jarayonni orqa fonda (awaitsiz) ishga tushiramiz
     runCheckAndSend(bot, Users, googleService)
       .then(async (result) => {
-        if (result.ok) {
-          await ctx.reply(`✅ ${result.message}`);
-        } else {
-          await ctx.reply(`⚠️ Xato: ${result.message}`);
-        }
+        if (result.ok) await ctx.reply(`✅ ${result.message}`);
+        else await ctx.reply(`⚠️ Xato: ${result.message}`);
       })
       .catch(async (err) => {
         console.error("Admin yuborish xatosi:", err);
@@ -235,72 +192,60 @@ function setupHandlers(bot, Users, googleService, options = {}) {
       });
   });
 
-  // 📢 Admin barcha foydalanuvchilarga xabar yuborish
-  bot.command("sendall", async (ctx) => {
+  // 📢 Barcha foydalanuvchilarga xabar yuborish
+  bot.action("send_all", async (ctx) => {
     const userId = String(ctx.from.id);
-    if (String(userId) !== String(ADMIN_ID)) {
-      return ctx.reply("❌ Siz admin emassiz!");
-    }
+    if (String(userId) !== String(ADMIN_ID))
+      return ctx.answerCbQuery("❌ Sizda ruxsat yo‘q!", { show_alert: true });
 
-    ctx.reply(
-      "✉️ Iltimos, yubormoqchi bo‘lgan xabaringizni kiriting:",
-      Markup.inlineKeyboard([
-        [Markup.button.callback("❌ Bekor qilish", "cancel_sendall")],
-      ])
-    );
-
-    // Adminning holatini eslab qolamiz
+    await ctx.answerCbQuery();
     const chatId = ctx.chat.id;
     WAITING[chatId] = { step: "awaiting_broadcast_message" };
+
+    await ctx.reply("✉️ Iltimos, yubormoqchi bo‘lgan xabaringizni kiriting:");
   });
 
-  // 🔹 Admin matn yuborganda
   bot.on("text", async (ctx) => {
     const chatId = ctx.chat.id;
+    if (WAITING[chatId]?.step !== "awaiting_broadcast_message") return;
 
-    // Agar admin xabar yuborayotgan bo‘lsa
-    if (WAITING[chatId]?.step === "awaiting_broadcast_message") {
-      const userId = String(ctx.from.id);
-      if (String(userId) !== String(ADMIN_ID)) return;
+    const userId = String(ctx.from.id);
+    if (String(userId) !== String(ADMIN_ID)) return;
 
-      const message = ctx.message.text;
-      delete WAITING[chatId];
+    const message = ctx.message.text;
+    delete WAITING[chatId];
 
-      await ctx.reply(
-        `📢 Quyidagi xabar barcha foydalanuvchilarga yuboriladi:\n\n"${message}"\n\nTasdiqlaysizmi?`,
-        Markup.inlineKeyboard([
-          [
-            Markup.button.callback(
-              "✅ Ha, yubor",
-              `confirm_sendall_${encodeURIComponent(message)}`
-            ),
-            Markup.button.callback("❌ Yo‘q, bekor", "cancel_sendall"),
-          ],
-        ])
-      );
-    }
+    await ctx.reply(
+      `📢 Quyidagi xabar barcha foydalanuvchilarga yuboriladi:\n\n"${message}"\n\nTasdiqlaysizmi?`,
+      Markup.inlineKeyboard([
+        [
+          Markup.button.callback("✅ Ha, yubor", `confirm_sendall_${encodeURIComponent(message)}`),
+          Markup.button.callback("❌ Bekor", "cancel_sendall")
+        ]
+      ])
+    );
   });
 
-  // 🔹 Bekor qilish tugmasi
   bot.action("cancel_sendall", async (ctx) => {
     delete WAITING[ctx.chat.id];
     await ctx.answerCbQuery();
     await ctx.reply("❌ Yuborish bekor qilindi.");
   });
 
-  // 🔹 Tasdiqlanganda xabarni hamma foydalanuvchilarga yuborish
   bot.action(/confirm_sendall_(.+)/, async (ctx) => {
     const userId = String(ctx.from.id);
-    if (String(userId) !== String(ADMIN_ID)) {
+    if (String(userId) !== String(ADMIN_ID))
       return ctx.answerCbQuery("❌ Sizda ruxsat yo‘q!", { show_alert: true });
-    }
 
     const message = decodeURIComponent(ctx.match[1]);
     await ctx.answerCbQuery("📨 Yuborish boshlandi...");
-    await ctx.reply("⏳ Xabar yuborilmoqda, biroz kuting...");
+    // ⏳ Ogohlantirish xabarini yuboramiz va messageId saqlaymiz
+    const warningMessage = await ctx.reply(
+      "⏳ Xabar yuborilmoqda, biroz kuting..."
+    );
 
     try {
-      const users = await Users.getAll(); // barcha foydalanuvchilarni olish
+      const users = await Users.getAll();
       let success = 0,
         failed = 0;
 
@@ -312,9 +257,10 @@ function setupHandlers(bot, Users, googleService, options = {}) {
           failed++;
           console.error(`❌ Xabar yuborilmadi (${user.chatId}):`, err.message);
         }
-        await new Promise((r) => setTimeout(r, 100)); // flood-limitdan saqlanish uchun 0.1s kutish
+        await new Promise((r) => setTimeout(r, 100));
       }
-
+      // Ogohlantirish xabarini o‘chirib tashlaymiz
+      await ctx.deleteMessage(warningMessage.message_id);
       await ctx.reply(
         `✅ ${success} ta foydalanuvchiga xabar yuborildi.\n⚠️ ${failed} tasi muvaffaqiyatsiz.`
       );

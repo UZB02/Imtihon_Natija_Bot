@@ -14,7 +14,7 @@ const SERVICE_ACCOUNT_KEY = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
 const CHECK_CRON = process.env.CHECK_CRON || "*/5 * * * *";
 const USE_MONGODB = process.env.USE_MONGODB === "true";
 const MONGODB_URI = process.env.MONGODB_URI;
-const ADMIN_ID = process.env.ADMIN_ID; // 🟢 admin chatId
+const ADMIN_ID = process.env.ADMIN_ID;
 
 // --- Tekshiruv ---
 if (!BOT_TOKEN || !SHEET_ID || !SERVICE_ACCOUNT_KEY) {

@@ -1,5 +1,6 @@
 // services/storage.js
 const mongoose = require("mongoose");
+const UserModel = require("../model/usersModel.js");
 
 module.exports = (USE_MONGODB, MONGODB_URI) => {
   if (!USE_MONGODB) {
@@ -17,18 +18,6 @@ module.exports = (USE_MONGODB, MONGODB_URI) => {
       console.error("❌ MongoDB xatosi:", err);
       process.exit(1);
     });
-
-  // 🧩 Schema
-  const userSchema = new mongoose.Schema({
-    chatId: { type: String, required: true },
-    parentName: { type: String, default: "" },
-    className: { type: String, default: "" },
-    childFullName: { type: String, default: "" },
-    isAdmin: { type: Boolean, default: false },
-    createdAt: { type: Date, default: Date.now },
-  });
-
-  const UserModel = mongoose.model("Parent", userSchema);
 
   // 📦 API funksiyalar
   const Users = {
@@ -51,6 +40,7 @@ module.exports = (USE_MONGODB, MONGODB_URI) => {
       }),
 
     listAll: async () => UserModel.find({}),
+    getAll: async () => UserModel.find({}), // getAll() qo‘shildi
   };
 
   return Users;
