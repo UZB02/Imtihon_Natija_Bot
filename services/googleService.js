@@ -1,30 +1,15 @@
 const { google } = require("googleapis");
 
 module.exports = (SHEET_ID, SERVICE_ACCOUNT_KEY) => {
-  // Railway yoki .env dan kelgan kalitni JSON sifatida parse qilamiz
-  let credentials;
-  try {
-    credentials =
-      typeof SERVICE_ACCOUNT_KEY === "string"
-        ? JSON.parse(SERVICE_ACCOUNT_KEY)
-        : SERVICE_ACCOUNT_KEY;
-  } catch (err) {
-    console.error("❌ GOOGLE_SERVICE_ACCOUNT_KEY noto‘g‘ri formatda!");
-    console.error(err);
-    process.exit(1);
-  }
-
-  // Google Auth orqali bog‘lanamiz
   const auth = new google.auth.GoogleAuth({
-    credentials,
+    keyFile: SERVICE_ACCOUNT_KEY,
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
 
   const sheets = google.sheets({ version: "v4", auth });
 
-  // Jadvalni o‘qish funksiyasi
   async function readSheetByName(sheetName) {
-    const range = `${sheetName}!A1:I1000`;
+    const range = `${sheetName}!A1:H1000`;
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
       range,
@@ -48,7 +33,6 @@ module.exports = (SHEET_ID, SERVICE_ACCOUNT_KEY) => {
       .filter((x) => x.fullName && x.fullName.trim().length > 0);
   }
 
-  // Sahifa nomlarini olish funksiyasi
   async function getSheetNames() {
     const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
     return meta.data.sheets.map((s) => s.properties.title);
