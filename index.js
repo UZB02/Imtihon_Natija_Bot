@@ -1,3 +1,4 @@
+// index.js
 require("dotenv").config();
 const { Telegraf } = require("telegraf");
 const cron = require("node-cron");
@@ -17,7 +18,9 @@ const USE_MONGODB = process.env.USE_MONGODB === "true";
 const MONGODB_URI = process.env.MONGODB_URI;
 const ADMIN_ID = process.env.ADMIN_ID;
 const RAILWAY_URL = process.env.RAILWAY_URL;
+const PORT = process.env.PORT || 3000;
 
+// === Asosiy tekshiruv ===
 if (!BOT_TOKEN || !SHEET_ID || !SERVICE_ACCOUNT_KEY) {
   console.error("❌ .env faylini to‘ldiring!");
   process.exit(1);
@@ -37,11 +40,13 @@ setupHandlers(bot, Users, googleService, { ADMIN_ID, runCheckAndSend });
 const app = express();
 app.use(express.json());
 
-app.post(`/bot${BOT_TOKEN}`, (req, res) => {
+// Webhook endpoint (tokenni URLga qo‘shmaslik kerak!)
+app.post("/webhook", (req, res) => {
   bot.handleUpdate(req.body);
   res.status(200).end();
 });
 
+// Test uchun oddiy route
 app.get("/", (req, res) => {
   res.send("🤖 Imtihon Natija Bot webhook orqali ishlayapti!");
 });
@@ -53,15 +58,22 @@ cron.schedule(CHECK_CRON, async () => {
 });
 
 // === Serverni ishga tushirish ===
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {
   console.log(`🚀 Server ${PORT}-portda ishga tushdi`);
 
-  // Eski webhookni o‘chirib, yangisini o‘rnatamiz
-  await bot.telegram.deleteWebhook();
-  await bot.telegram.setWebhook(`${RAILWAY_URL}/bot${BOT_TOKEN}`);
+  try {
+    // Avval eski webhookni o‘chiramiz
+    await bot.telegram.deleteWebhook();
 
-  console.log(`🌐 Webhook o‘rnatildi: ${RAILWAY_URL}/bot${BOT_TOKEN}`);
+    // Yangi webhookni o‘rnatamiz
+    await bot.telegram.setWebhook(`${RAILWAY_URL}/webhook`);
+    console.log(`🌐 Webhook o‘rnatildi: ${RAILWAY_URL}/webhook`);
+
+    // ✅ (ixtiyoriy) Lokal test uchun pollingni o‘chirish:
+    // await bot.launch();
+  } catch (err) {
+    console.error("❌ Webhook o‘rnatishda xatolik:", err.message);
+  }
 });
 
 // === Toza to‘xtatish ===
