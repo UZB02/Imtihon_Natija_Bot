@@ -11,7 +11,6 @@ const { runCheckAndSend } = require("./bot/checker");
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const SHEET_ID = process.env.SHEET_ID;
 const SERVICE_ACCOUNT_KEY = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
-const CHECK_CRON = process.env.CHECK_CRON || "*/5 * * * *";
 const USE_MONGODB = process.env.USE_MONGODB === "true";
 const MONGODB_URI = process.env.MONGODB_URI;
 const ADMIN_ID = process.env.ADMIN_ID;
@@ -31,12 +30,6 @@ const Users = storageFactory(USE_MONGODB, MONGODB_URI);
 
 // --- Handlerlarni ulaymiz ---
 setupHandlers(bot, Users, googleService, { ADMIN_ID, runCheckAndSend });
-
-// --- Cron (avtomatik yuborish) ---
-cron.schedule(CHECK_CRON, async () => {
-  console.log("⏰ Cron ishga tushdi");
-  await runCheckAndSend(bot, Users, googleService);
-});
 
 // --- Botni ishga tushiramiz ---
 bot.launch();

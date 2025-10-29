@@ -1,9 +1,9 @@
 const { Telegraf, Markup } = require("telegraf");
 const cron = require("node-cron");
 const setupHandlers = require("./handlers");
-const { composeMessage } = require("../utils/helpers");
+const { composeMessage } = require("../utils/helpers.js");
 
-function setupBot({ Users, googleService, BOT_TOKEN, CHECK_CRON }) {
+function setupBot({ Users, googleService, BOT_TOKEN}) {
   if (!BOT_TOKEN) throw new Error("BOT_TOKEN topilmadi!");
 
   const bot = new Telegraf(BOT_TOKEN);
@@ -45,21 +45,6 @@ function setupBot({ Users, googleService, BOT_TOKEN, CHECK_CRON }) {
     }
   }
 
-  // 🔹 Cronni yoqish/o‘chirish funksiyasi
-  function toggleCron(ctx) {
-    if (!cronEnabled) {
-      cronJob = cron.schedule(CHECK_CRON, async () => {
-        console.log("⏰ Cron job: tekshiruv", new Date().toISOString());
-        await checkAndSendAll();
-      });
-      cronEnabled = true;
-      ctx.reply("✅ Cron yoqildi (avtomatik tekshiruv).");
-    } else {
-      cronJob?.stop();
-      cronEnabled = false;
-      ctx.reply("⛔ Cron o‘chirildi.");
-    }
-  }
 
   // 🔹 Admin panel tugmalari
   const adminKeyboard = Markup.inlineKeyboard([

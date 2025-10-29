@@ -1,35 +1,19 @@
-// bot/handlers.js
 const { Markup } = require("telegraf");
 const {
   normalizeName,
   chunkArray,
   composeMessage,
-} = require("../utils/helpers");
-const setupAdminHandlers = require("./handlers/adminHandler.js");
+} = require("../../utils/helpers.js");
 
-function setupHandlers(bot, Users, googleService, options = {}) {
-  const WAITING = {};
-  const FAMILY = {};
-
-  const ADMIN_ID = options.ADMIN_ID || process.env.ADMIN_ID;
-  const runCheckAndSend = options.runCheckAndSend;
-
-  // 👤 Oddiy foydalanuvchi uchun keyboard
-  const mainKeyboard = Markup.keyboard([
-    ["➕ Natijalarni ko'rish", "ℹ️ Yordam"],
-  ])
-    .resize()
-    .oneTime(false);
-
-  // 🧑‍💼 Admin uchun keyboard
-  const adminMainKeyboard = Markup.keyboard([
-    ["📤 Natijalarni yuborish", "📢 Barcha foydalanuvchilarga xabar yuborish"],
-    ["➕ Natijalarni ko'rish", "ℹ️ Yordam"],
-  ])
-    .resize()
-    .oneTime(false);
-
-  // 🟢 Start
+module.exports = function parentHandler(
+  bot,
+  Users,
+  googleService,
+  FAMILY,
+  WAITING,
+  ADMIN_ID
+) {
+  // 🔹 Start
   bot.start(async (ctx) => {
     const chatId = ctx.chat.id;
     FAMILY[chatId] = [];
@@ -38,38 +22,25 @@ function setupHandlers(bot, Users, googleService, options = {}) {
     const userId = String(ctx.from.id);
     const isAdmin = userId === String(ADMIN_ID);
 
+    const mainKeyboard = Markup.keyboard([
+      ["➕ Natijalarni ko'rish", "ℹ️ Yordam"],
+    ])
+      .resize()
+      .oneTime(false);
+
+    const adminKeyboard = Markup.keyboard([
+      [
+        "📤 Natijalarni yuborish",
+        "📢 Barcha foydalanuvchilarga xabar yuborish",
+      ],
+      ["➕ Natijalarni ko'rish", "ℹ️ Yordam"],
+    ])
+      .resize()
+      .oneTime(false);
+
     await ctx.reply(
       "👋 Assalomu alaykum!\nQuyidagi pastki tugmalar orqali farzandingizni qo‘shishingiz yoki yordam olishingiz mumkin.",
-      isAdmin ? adminMainKeyboard : mainKeyboard
-    );
-
-    let classes = [];
-    try {
-      classes = await googleService.getSheetNames();
-    } catch {
-      classes = ["5-Green", "5-Blue", "6-Green"];
-    }
-
-    const chunks = chunkArray(classes, 8);
-    for (const group of chunks) {
-      const buttons = group.map((c) => Markup.button.callback(c, `class_${c}`));
-      await ctx.reply(
-        "📘 Sinfingizni tanlang:",
-        Markup.inlineKeyboard(buttons, { columns: 2 })
-      );
-    }
-  });
-
-  // ➕ Natijalarni ko‘rish
-  bot.hears("➕ Natijalarni ko'rish", async (ctx) => {
-    const chatId = ctx.chat.id;
-    WAITING[chatId] = { step: "askClass" };
-    const userId = String(ctx.from.id);
-    const isAdmin = userId === String(ADMIN_ID);
-
-    await ctx.reply(
-      "📘 Sinfingizni tanlang:",
-      isAdmin ? adminMainKeyboard : mainKeyboard
+      isAdmin ? adminKeyboard : mainKeyboard
     );
 
     let classes = [];
@@ -94,6 +65,28 @@ function setupHandlers(bot, Users, googleService, options = {}) {
     await ctx.replyWithMarkdown(
       "ℹ️ *Yordam:*\n1️⃣ '➕ Natijalarni ko'rish' tugmasini bosing.\n2️⃣ Sinfni tanlang.\n3️⃣ Farzand ismini tanlang.\n4️⃣ Yakunlang va natijalarni oling."
     );
+  });
+
+  // ➕ Natijalarni ko‘rish
+  bot.hears("➕ Natijalarni ko'rish", async (ctx) => {
+    const chatId = ctx.chat.id;
+    WAITING[chatId] = { step: "askClass" };
+
+    let classes = [];
+    try {
+      classes = await googleService.getSheetNames();
+    } catch {
+      classes = ["5-Green", "5-Blue", "6-Green"];
+    }
+
+    const chunks = chunkArray(classes, 8);
+    for (const group of chunks) {
+      const buttons = group.map((c) => Markup.button.callback(c, `class_${c}`));
+      await ctx.reply(
+        "📘 Sinfingizni tanlang:",
+        Markup.inlineKeyboard(buttons, { columns: 2 })
+      );
+    }
   });
 
   // 🟡 Sinf tanlash
@@ -129,7 +122,6 @@ function setupHandlers(bot, Users, googleService, options = {}) {
     const childFullName = ctx.match[1];
     const chatId = ctx.chat.id;
     const state = WAITING[chatId];
-
     if (!state || !state.className)
       return ctx.reply("⚠️ Iltimos, avval /start buyrug‘idan boshlang.");
 
@@ -159,7 +151,7 @@ function setupHandlers(bot, Users, googleService, options = {}) {
     );
   });
 
-  // ➕ Yana farzand qo‘shish
+  // ➕ Yana qo‘shish
   bot.action("add_child", async (ctx) => {
     const chatId = ctx.chat.id;
     WAITING[chatId] = { step: "askClass" };
@@ -204,17 +196,6 @@ function setupHandlers(bot, Users, googleService, options = {}) {
     }
 
     delete FAMILY[chatId];
-
-    const userId = String(ctx.from.id);
-    const isAdmin = userId === String(ADMIN_ID);
-    await ctx.reply(
-      "✅ Barcha natijalar yuborildi. Rahmat!",
-      isAdmin ? adminMainKeyboard : mainKeyboard
-    );
+    await ctx.reply("✅ Barcha natijalar yuborildi. Rahmat!");
   });
-
-  // 🔹 Admin logikasini ulaymiz
-  setupAdminHandlers(bot, Users, googleService, { ADMIN_ID, runCheckAndSend });
-}
-
-module.exports = setupHandlers;
+};
